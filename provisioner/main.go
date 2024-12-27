@@ -1,25 +1,35 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"net"
 	"net/http"
-	"time"
+	"os"
 
+	"github.com/alancuriel/game-hosting-sass/provisioner/helpers"
 	"github.com/alancuriel/game-hosting-sass/provisioner/models"
 	"github.com/alancuriel/game-hosting-sass/provisioner/services"
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
+	log.Default()
 	mcService, err := services.NewMinecraftLinodeProvisionService()
 	if err != nil {
-		fmt.Println(err.Error())
-		return
+		log.Fatal(err.Error())
 	}
 
 	r := gin.Default()
+
+	r.Use(gin.Recovery())
+
+	adminPswd := os.Getenv("PROVISIONER_ADMIN_PASS")
+	if adminPswd == "" {
+		log.Fatal("could not start, No admin password found")
+	}
+
+	r.Use(gin.BasicAuth(gin.Accounts{
+		"admin": adminPswd,
+	}))
 
 	r.GET("/ping", func(c *gin.Context) {
 		c.String(http.StatusOK, "pong")
@@ -44,37 +54,10 @@ func main() {
 			return
 		}
 
-		go PingMcServer(ip)
+		go helpers.PingMcServer(ip)
 
 		c.String(http.StatusCreated, ip)
 	})
 
 	r.Run()
-}
-
-func PingMcServer(ip string) {
-	logger := log.Default()
-	logger.Println("SERVER STARTING, IP: " + ip)
-
-	// Loop to check server status
-	for {
-		if IsServerUp(ip, "25565") {
-			logger.Println("Server is UP!")
-			return
-		} else {
-			logger.Println("Server is DOWN!")
-		}
-
-		time.Sleep(10 * time.Second) // Check every 10 seconds
-	}
-}
-
-func IsServerUp(ip, port string) bool {
-	address := net.JoinHostPort(ip, port)
-	conn, err := net.DialTimeout("tcp", address, 5*time.Second) // 5-second timeout
-	if err != nil {
-		return false
-	}
-	conn.Close()
-	return true
 }
