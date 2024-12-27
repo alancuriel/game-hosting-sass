@@ -5,8 +5,10 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/alancuriel/game-hosting-sass/provisioner/clients"
+	"github.com/alancuriel/game-hosting-sass/provisioner/db"
 	gen "github.com/alancuriel/game-hosting-sass/provisioner/generators"
 	"github.com/alancuriel/game-hosting-sass/provisioner/helpers"
 	m "github.com/alancuriel/game-hosting-sass/provisioner/models"
@@ -22,8 +24,9 @@ type MinecraftProvisionService interface {
 }
 
 type MinecraftLinodeProvisionService struct {
-	linodeClient   clients.Linode
+	linodeClient   *clients.Linode
 	serverRootPass string
+	provisionerDb  *db.ProvisionerDB
 }
 
 func NewMinecraftLinodeProvisionService() (MinecraftProvisionService, error) {
@@ -39,12 +42,18 @@ func NewMinecraftLinodeProvisionService() (MinecraftProvisionService, error) {
 		return nil, fmt.Errorf("MC_ROOT_PASS not found")
 	}
 
+	db, err := db.NewProvisioner()
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize provisioner db: %v", err)
+	}
+
 	return &MinecraftLinodeProvisionService{
-		linodeClient: clients.Linode{
+		linodeClient: &clients.Linode{
 			HttpClient: &http.Client{},
 			ApiKey:     linodeApiKey,
 		},
 		serverRootPass: root_pass,
+		provisionerDb:  db,
 	}, nil
 }
 
@@ -61,31 +70,9 @@ func (s *MinecraftLinodeProvisionService) Provision(
 		return "", fmt.Errorf("Invalid minecraft region type provided")
 	}
 
-	g := gen.CreateUserDataGenerator(gen.LINODE_UBUNTU_22_04_MINECRAFT)
-	user_data, err := g.Generate(map[string]string{"${{OPUSER}}": minecraftUser})
-
+	req, err := s.genLinodeRequest(instance, region, minecraftUser)
 	if err != nil {
-		return "", err
-	}
-
-	instanceType := s.mapMinecraftTypeToLinode(instance)
-
-	if instanceType == m.LINODE_INSTANCE_INVALID {
-		return "", fmt.Errorf("Could not find  instance type from %s", instance.String())
-	}
-
-	label := "mc_" + minecraftUser + "_" + helpers.GenRandAlphaNumeric(4)
-
-	req := &m.CreateLinodeRequest{
-		Image:        default_linode_image,
-		Region:       region.String(),
-		InstanceType: instanceType.String(),
-		Label:        label,
-		RootPass:     s.serverRootPass,
-		FirewallId:   minecraft_firewall_id,
-		Metadata: map[string]string{
-			"user_data": user_data,
-		},
+		return "", fmt.Errorf("error generating linode req %s", err.Error())
 	}
 
 	resp, err := s.linodeClient.CreateLinode(req)
@@ -97,7 +84,57 @@ func (s *MinecraftLinodeProvisionService) Provision(
 		return "", fmt.Errorf("no ip found from creating linode")
 	}
 
+	now := time.Now()
+
+	server := &m.MinecraftServer{
+		IP:           resp.Ipv4[0],
+		Username:     minecraftUser,
+		InstanceType: instance.String(),
+		Region:       region.String(),
+		Label:        req.Label,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+		Status:       "active",
+	}
+
+	err = s.provisionerDb.SaveServer(server)
+	if err != nil {
+		return resp.Ipv4[0], fmt.Errorf("server created but failed to save to database: %v", err)
+	}
+
 	return resp.Ipv4[0], nil
+}
+
+func (s *MinecraftLinodeProvisionService) genLinodeRequest(
+	instance m.MinecraftInstance,
+	region m.Region,
+	minecraftUser string) (*m.CreateLinodeRequest, error) {
+	g := gen.CreateUserDataGenerator(gen.LINODE_UBUNTU_22_04_MINECRAFT)
+	user_data, err := g.Generate(map[string]string{"${{OPUSER}}": minecraftUser})
+
+	if err != nil {
+		return nil, err
+	}
+
+	instanceType := s.mapMinecraftTypeToLinode(instance)
+
+	if instanceType == m.LINODE_INSTANCE_INVALID {
+		return nil, fmt.Errorf("Could not find  instance type from %s", instance.String())
+	}
+
+	label := "mc_" + minecraftUser + "_" + helpers.GenRandAlphaNumeric(4)
+
+	return &m.CreateLinodeRequest{
+		Image:        default_linode_image,
+		Region:       region.String(),
+		InstanceType: instanceType.String(),
+		Label:        label,
+		RootPass:     s.serverRootPass,
+		FirewallId:   minecraft_firewall_id,
+		Metadata: map[string]string{
+			"user_data": user_data,
+		},
+	}, nil
 }
 
 func (s *MinecraftLinodeProvisionService) mapMinecraftTypeToLinode(
