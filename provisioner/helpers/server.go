@@ -6,14 +6,20 @@ import (
 	"time"
 )
 
-func PingMcServer(ip string) {
+func PingMcServer(ip string, callback func()) {
 	logger := log.Default()
 	logger.Println("SERVER STARTING, IP: " + ip)
-
+	timeoutTime := time.Now().Add(15 * time.Minute)
 	// Loop to check server status
 	for {
+		if time.Now().After(timeoutTime) {
+			logger.Printf("TIMEOUT mc server starting on %s took too long\n", ip)
+			return
+		}
+
 		if IsServerUp(ip, "25565") {
 			logger.Println("Server is UP!")
+			callback()
 			return
 		} else {
 			logger.Println("Server is DOWN!")

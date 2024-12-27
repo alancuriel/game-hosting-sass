@@ -12,6 +12,7 @@ import (
 	gen "github.com/alancuriel/game-hosting-sass/provisioner/generators"
 	"github.com/alancuriel/game-hosting-sass/provisioner/helpers"
 	m "github.com/alancuriel/game-hosting-sass/provisioner/models"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 const (
@@ -87,6 +88,7 @@ func (s *MinecraftLinodeProvisionService) Provision(
 	now := time.Now()
 
 	server := &m.MinecraftServer{
+		ID:           primitive.NewObjectID(),
 		IP:           resp.Ipv4[0],
 		Username:     minecraftUser,
 		InstanceType: instance.String(),
@@ -94,13 +96,17 @@ func (s *MinecraftLinodeProvisionService) Provision(
 		Label:        req.Label,
 		CreatedAt:    now,
 		UpdatedAt:    now,
-		Status:       "active",
+		Status:       "pending",
 	}
 
-	err = s.provisionerDb.SaveServer(server)
+	_, err = s.provisionerDb.SaveServer(server)
 	if err != nil {
 		return resp.Ipv4[0], fmt.Errorf("server created but failed to save to database: %v", err)
 	}
+
+	go helpers.PingMcServer(resp.Ipv4[0], func() {
+		s.provisionerDb.UpdateServerStatus(server.ID, "running")
+	})
 
 	return resp.Ipv4[0], nil
 }

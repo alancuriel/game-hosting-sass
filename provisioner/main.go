@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/alancuriel/game-hosting-sass/provisioner/helpers"
 	"github.com/alancuriel/game-hosting-sass/provisioner/models"
 	"github.com/alancuriel/game-hosting-sass/provisioner/services"
 	"github.com/gin-gonic/gin"
@@ -53,8 +52,6 @@ func main() {
 			c.AbortWithStatus(http.StatusInternalServerError)
 			return
 		}
-
-		go helpers.PingMcServer(ip)
 
 		c.String(http.StatusCreated, ip)
 	})
