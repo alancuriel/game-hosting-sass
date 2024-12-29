@@ -55,11 +55,28 @@ func (s *ProvisionerDB) UpdateServerStatus(id interface{}, status string) error 
 		"lastUpdated": time.Now(),
 	}}
 
-
 	_, err := collection.UpdateOne(context.Background(), filter, update)
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (s *ProvisionerDB) ListMcServerByOwner(owner string) ([]*m.MinecraftServer, error) {
+	collection := s.db.Collection("minecraft_servers")
+	filter := bson.M{"owner": owner}
+
+	cursor, err := collection.Find(context.Background(), filter)
+	if err != nil {
+		return nil, err
+	}
+
+
+	var servers []*m.MinecraftServer
+	if err = cursor.All(context.Background(), &servers); err != nil {
+		return nil, err
+	}
+
+	return servers, nil
 }

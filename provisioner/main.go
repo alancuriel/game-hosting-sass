@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/alancuriel/game-hosting-sass/provisioner/models"
 	"github.com/alancuriel/game-hosting-sass/provisioner/services"
@@ -41,12 +42,13 @@ func main() {
 		}
 
 		if req.Instance == models.MINECRAFT_INSTANCE_INVALID ||
-			req.Region == models.INVALID || req.Username == "" {
+			req.Region == models.INVALID || req.Username == "" ||
+			req.Owner == "" {
 			c.Status(http.StatusBadRequest)
 			return
 		}
 
-		ip, err := mcService.Provision(req.Instance, req.Region, req.Username)
+		ip, err := mcService.Provision(req)
 		if err != nil {
 			log.Default().Println("error provisioning ", err.Error())
 			c.AbortWithStatus(http.StatusInternalServerError)
@@ -54,6 +56,25 @@ func main() {
 		}
 
 		c.String(http.StatusCreated, ip)
+	})
+
+	r.GET("/v1/servers/mc/:owner", func(c *gin.Context) {
+		owner := c.Param("owner")
+
+		if strings.TrimSpace(owner) == "" {
+			c.AbortWithStatus(http.StatusBadRequest)
+			return
+		}
+
+		servers, err := mcService.ListServersByOwner(owner)
+
+		if err != nil {
+			log.Default().Println("error listing servers ", err.Error())
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+
+		c.JSON(http.StatusOK, servers)
 	})
 
 	r.Run()

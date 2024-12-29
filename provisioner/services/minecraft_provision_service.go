@@ -21,7 +21,8 @@ const (
 )
 
 type MinecraftProvisionService interface {
-	Provision(instance m.MinecraftInstance, region m.Region, minecraftUser string) (string, error)
+	Provision(provisionRequest *m.ProvisionMcServerRequest) (string, error)
+	ListServersByOwner(owner string) ([]*m.MinecraftServer, error)
 }
 
 type MinecraftLinodeProvisionService struct {
@@ -58,25 +59,27 @@ func NewMinecraftLinodeProvisionService() (MinecraftProvisionService, error) {
 	}, nil
 }
 
-func (s *MinecraftLinodeProvisionService) Provision(
-	instance m.MinecraftInstance, region m.Region, minecraftUser string) (string, error) {
+func (s *MinecraftLinodeProvisionService) Provision(req *m.ProvisionMcServerRequest) (string, error) {
 
-	if instance == m.MINECRAFT_INSTANCE_INVALID {
+	if req.Instance == m.MINECRAFT_INSTANCE_INVALID {
 		return "", fmt.Errorf("Invalid minecraft instance type provided")
 	}
-	if region == m.INVALID {
+	if req.Region == m.INVALID {
 		return "", fmt.Errorf("Invalid minecraft region type provided")
 	}
-	if minecraftUser == "" {
+	if req.Username == "" {
 		return "", fmt.Errorf("Invalid minecraft region type provided")
+	}
+	if req.Owner == "" {
+		return "", fmt.Errorf("Invalid server owner provided")
 	}
 
-	req, err := s.genLinodeRequest(instance, region, minecraftUser)
+	linodeReq, err := s.genLinodeRequest(req.Instance, req.Region, req.Username)
 	if err != nil {
 		return "", fmt.Errorf("error generating linode req %s", err.Error())
 	}
 
-	resp, err := s.linodeClient.CreateLinode(req)
+	resp, err := s.linodeClient.CreateLinode(linodeReq)
 
 	if err != nil {
 		return "", fmt.Errorf("error creating mc server %s", err.Error())
@@ -90,10 +93,11 @@ func (s *MinecraftLinodeProvisionService) Provision(
 	server := &m.MinecraftServer{
 		ID:           primitive.NewObjectID(),
 		IP:           resp.Ipv4[0],
-		Username:     minecraftUser,
-		InstanceType: instance.String(),
-		Region:       region.String(),
-		Label:        req.Label,
+		Username:     req.Username,
+		InstanceType: req.Instance.String(),
+		Region:       req.Region.String(),
+		Label:        linodeReq.Label,
+		Owner:        req.Owner,
 		CreatedAt:    now,
 		UpdatedAt:    now,
 		Status:       "pending",
@@ -160,4 +164,22 @@ func (s *MinecraftLinodeProvisionService) mapMinecraftTypeToLinode(
 	default:
 		return m.LINODE_INSTANCE_INVALID
 	}
+}
+
+func (s *MinecraftLinodeProvisionService) ListServersByOwner(owner string) ([]*m.MinecraftServer, error) {
+	if owner == "" {
+		return nil, fmt.Errorf("no owner provided")
+	}
+
+	servers, err := s.provisionerDb.ListMcServerByOwner(owner)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if servers == nil || len(servers) == 0 {
+		return []*m.MinecraftServer{}, nil
+	}
+
+	return servers, nil
 }

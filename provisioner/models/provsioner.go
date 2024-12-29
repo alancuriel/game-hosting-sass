@@ -4,4 +4,5 @@ type ProvisionMcServerRequest struct {
 	Instance MinecraftInstance `json:"instance,omitempty"`
 	Region   Region            `json:"region,omitempty"`
 	Username string            `json:"username,omitempty"`
+	Owner    string            `json:"owner,omitempty"`
 }
