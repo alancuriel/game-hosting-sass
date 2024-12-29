@@ -23,6 +23,7 @@ const (
 type MinecraftProvisionService interface {
 	Provision(provisionRequest *m.ProvisionMcServerRequest) (string, error)
 	ListServersByOwner(owner string) ([]*m.MinecraftServer, error)
+	DeleteServer(id string) error
 }
 
 type MinecraftLinodeProvisionService struct {
@@ -93,6 +94,7 @@ func (s *MinecraftLinodeProvisionService) Provision(req *m.ProvisionMcServerRequ
 	server := &m.MinecraftServer{
 		ID:           primitive.NewObjectID(),
 		IP:           resp.Ipv4[0],
+		LinodeId:     resp.Id,
 		Username:     req.Username,
 		InstanceType: req.Instance.String(),
 		Region:       req.Region.String(),
@@ -182,4 +184,36 @@ func (s *MinecraftLinodeProvisionService) ListServersByOwner(owner string) ([]*m
 	}
 
 	return servers, nil
+}
+
+func (s *MinecraftLinodeProvisionService) DeleteServer(id string) error {
+	if id == "" {
+		return fmt.Errorf("no server id provided")
+	}
+
+	server, err := s.provisionerDb.FindMCServer(id)
+
+	if err != nil {
+		return err
+	}
+	if server == nil {
+		return nil
+	}
+
+	err = s.provisionerDb.UpdateServerStatus(server.ID, "deleting")
+	if err != nil {
+		return err
+	}
+
+	err = s.linodeClient.DeleteLinode(server.LinodeId)
+	if err != nil {
+		return err
+	}
+
+	err = s.provisionerDb.DeleteMCServer(id)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

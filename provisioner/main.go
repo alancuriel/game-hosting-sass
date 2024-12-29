@@ -12,10 +12,10 @@ import (
 )
 
 func main() {
-	log.Default()
+	logger := log.Default()
 	mcService, err := services.NewMinecraftLinodeProvisionService()
 	if err != nil {
-		log.Fatal(err.Error())
+		logger.Fatal(err.Error())
 	}
 
 	r := gin.Default()
@@ -24,7 +24,7 @@ func main() {
 
 	adminPswd := os.Getenv("PROVISIONER_ADMIN_PASS")
 	if adminPswd == "" {
-		log.Fatal("could not start, No admin password found")
+		logger.Fatal("could not start, No admin password found")
 	}
 
 	r.Use(gin.BasicAuth(gin.Accounts{
@@ -50,7 +50,7 @@ func main() {
 
 		ip, err := mcService.Provision(req)
 		if err != nil {
-			log.Default().Println("error provisioning ", err.Error())
+			logger.Println("error provisioning ", err.Error())
 			c.AbortWithStatus(http.StatusInternalServerError)
 			return
 		}
@@ -69,12 +69,31 @@ func main() {
 		servers, err := mcService.ListServersByOwner(owner)
 
 		if err != nil {
-			log.Default().Println("error listing servers ", err.Error())
+			logger.Println("error listing servers ", err.Error())
 			c.AbortWithStatus(http.StatusInternalServerError)
 			return
 		}
 
 		c.JSON(http.StatusOK, servers)
+	})
+
+	r.DELETE("/v1/servers/mc/:id", func(c *gin.Context) {
+		id := c.Param("id")
+
+		if strings.TrimSpace(id) == "" {
+			c.AbortWithStatus(http.StatusBadRequest)
+			return
+		}
+
+		err := mcService.DeleteServer(id)
+
+		if err != nil {
+			logger.Println("error deleting server ", err.Error())
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+
+		c.Status(http.StatusNoContent)
 	})
 
 	r.Run()

@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	LINODE_URL  = "https://api.linode.com/v4"
+	LINODE_URL = "https://api.linode.com/v4"
 )
 
 type Linode struct {
@@ -43,6 +43,35 @@ func (l *Linode) CreateLinode(req *models.CreateLinodeRequest) (*models.CreateLi
 	}
 
 	return linodeResp, nil
+}
+
+func (l *Linode) DeleteLinode(linodeId int64) error {
+	if l.ApiKey == "" {
+		return fmt.Errorf("No api key provided")
+	}
+
+	url := fmt.Sprintf("%s/linode/instances/%d", LINODE_URL, linodeId)
+	req, err := http.NewRequest("DELETE", url, nil)
+
+	if err != nil {
+		return fmt.Errorf("Error creating request for DELETE linode %d", linodeId)
+	}
+
+	req.Header.Add("Authorization", "Bearer "+l.ApiKey)
+
+	resp, err := l.HttpClient.Do(req)
+
+	if err != nil {
+		log.Printf("Error sending DELETE linode %d %s\n", linodeId, err.Error())
+		return fmt.Errorf("Error sending DELETE request for linode/%d", linodeId)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		log.Printf("Status code sending DELETE linode/%d %d\n", linodeId, resp.StatusCode)
+		return fmt.Errorf("Error sending DELETE request for linode/%d", linodeId)
+	}
+
+	return nil
 }
 
 func (l *Linode) postJson(path string, body interface{}) (*http.Response, error) {

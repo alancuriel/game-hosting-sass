@@ -8,6 +8,7 @@ import (
 
 	m "github.com/alancuriel/game-hosting-sass/provisioner/models"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -72,11 +73,47 @@ func (s *ProvisionerDB) ListMcServerByOwner(owner string) ([]*m.MinecraftServer,
 		return nil, err
 	}
 
-
 	var servers []*m.MinecraftServer
 	if err = cursor.All(context.Background(), &servers); err != nil {
 		return nil, err
 	}
 
 	return servers, nil
+}
+
+func (s *ProvisionerDB) DeleteMCServer(id string) error {
+	collection := s.db.Collection("minecraft_servers")
+
+	objectId, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return fmt.Errorf("Invalid id provided when deleting server")
+	}
+
+	filter := bson.M{"_id": objectId}
+
+	_, err = collection.DeleteOne(context.Background(), filter)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *ProvisionerDB) FindMCServer(id string) (*m.MinecraftServer, error) {
+	collection := s.db.Collection("minecraft_servers")
+
+	objectId, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return nil, fmt.Errorf("Invalid id provided when finding server")
+	}
+
+	filter := bson.M{"_id": objectId}
+
+	var server m.MinecraftServer
+	err = collection.FindOne(context.Background(), filter).Decode(&server)
+	if err != nil {
+		return nil, err
+	}
+
+	return &server, nil
 }
