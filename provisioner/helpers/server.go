@@ -18,11 +18,11 @@ func PingMcServer(ip string, callback func()) {
 		}
 
 		if IsServerUp(ip, "25565") {
-			logger.Println("Server is UP!")
+			logger.Printf("Server %s is Up! \n", ip)
 			callback()
 			return
 		} else {
-			logger.Println("Server is DOWN!")
+			logger.Printf("Server %s is Down, pinging in 10secs \n", ip)
 		}
 
 		time.Sleep(10 * time.Second) // Check every 10 seconds

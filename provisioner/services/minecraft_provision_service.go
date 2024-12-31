@@ -28,7 +28,7 @@ type MinecraftProvisionService interface {
 	AnnounceMessage(id string, message string) error
 }
 
-type MinecraftLinodeProvisionService struct {
+type minecraftLinodeProvisionService struct {
 	linodeClient   *clients.Linode
 	serverRootPass string
 	provisionerDb  *db.ProvisionerDB
@@ -52,7 +52,7 @@ func NewMinecraftLinodeProvisionService() (MinecraftProvisionService, error) {
 		return nil, fmt.Errorf("failed to initialize provisioner db: %v", err)
 	}
 
-	return &MinecraftLinodeProvisionService{
+	return &minecraftLinodeProvisionService{
 		linodeClient: &clients.Linode{
 			HttpClient: &http.Client{},
 			ApiKey:     linodeApiKey,
@@ -62,7 +62,7 @@ func NewMinecraftLinodeProvisionService() (MinecraftProvisionService, error) {
 	}, nil
 }
 
-func (s *MinecraftLinodeProvisionService) Provision(req *m.ProvisionMcServerRequest) (string, error) {
+func (s *minecraftLinodeProvisionService) Provision(req *m.ProvisionMcServerRequest) (string, error) {
 
 	if req.Instance == m.MINECRAFT_INSTANCE_INVALID {
 		return "", fmt.Errorf("Invalid minecraft instance type provided")
@@ -119,7 +119,7 @@ func (s *MinecraftLinodeProvisionService) Provision(req *m.ProvisionMcServerRequ
 	return resp.Ipv4[0], nil
 }
 
-func (s *MinecraftLinodeProvisionService) genLinodeRequest(
+func (s *minecraftLinodeProvisionService) genLinodeRequest(
 	instance m.MinecraftInstance,
 	region m.Region,
 	minecraftUser string) (*m.CreateLinodeRequest, error) {
@@ -151,7 +151,7 @@ func (s *MinecraftLinodeProvisionService) genLinodeRequest(
 	}, nil
 }
 
-func (s *MinecraftLinodeProvisionService) mapMinecraftTypeToLinode(
+func (s *minecraftLinodeProvisionService) mapMinecraftTypeToLinode(
 	instanceType m.MinecraftInstance) m.LinodeInstance {
 
 	switch instanceType {
@@ -170,7 +170,7 @@ func (s *MinecraftLinodeProvisionService) mapMinecraftTypeToLinode(
 	}
 }
 
-func (s *MinecraftLinodeProvisionService) ListServersByOwner(owner string) ([]*m.MinecraftServer, error) {
+func (s *minecraftLinodeProvisionService) ListServersByOwner(owner string) ([]*m.MinecraftServer, error) {
 	if owner == "" {
 		return nil, fmt.Errorf("no owner provided")
 	}
@@ -188,7 +188,7 @@ func (s *MinecraftLinodeProvisionService) ListServersByOwner(owner string) ([]*m
 	return servers, nil
 }
 
-func (s *MinecraftLinodeProvisionService) DeleteServer(id string) error {
+func (s *minecraftLinodeProvisionService) DeleteServer(id string) error {
 	if id == "" {
 		return fmt.Errorf("no server id provided")
 	}
@@ -220,7 +220,7 @@ func (s *MinecraftLinodeProvisionService) DeleteServer(id string) error {
 	return nil
 }
 
-func (s *MinecraftLinodeProvisionService) AnnounceMessage(id string, message string) error {
+func (s *minecraftLinodeProvisionService) AnnounceMessage(id string, message string) error {
 	if id == "" {
 		return fmt.Errorf("no server id provided")
 	}
