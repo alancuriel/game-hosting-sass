@@ -96,5 +96,25 @@ func main() {
 		c.Status(http.StatusNoContent)
 	})
 
+	r.POST("/v1/servers/mc/:id/announce", func(c *gin.Context) {
+		id := c.Param("id")
+		var req struct {
+			Message string `json:"message" binding:"required"`
+		}
+
+		if err := c.BindJSON(&req); err != nil {
+			c.Status(http.StatusBadRequest)
+			return
+		}
+
+		if err := mcService.AnnounceMessage(id, req.Message); err != nil {
+			logger.Printf("Failed to announce message: %v", err)
+			c.Status(http.StatusInternalServerError)
+			return
+		}
+
+		c.Status(http.StatusOK)
+	})
+
 	r.Run()
 }

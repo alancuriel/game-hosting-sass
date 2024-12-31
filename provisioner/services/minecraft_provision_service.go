@@ -13,6 +13,7 @@ import (
 	"github.com/alancuriel/game-hosting-sass/provisioner/helpers"
 	m "github.com/alancuriel/game-hosting-sass/provisioner/models"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"golang.org/x/crypto/ssh"
 )
 
 const (
@@ -24,6 +25,7 @@ type MinecraftProvisionService interface {
 	Provision(provisionRequest *m.ProvisionMcServerRequest) (string, error)
 	ListServersByOwner(owner string) ([]*m.MinecraftServer, error)
 	DeleteServer(id string) error
+	AnnounceMessage(id string, message string) error
 }
 
 type MinecraftLinodeProvisionService struct {
@@ -213,6 +215,61 @@ func (s *MinecraftLinodeProvisionService) DeleteServer(id string) error {
 	err = s.provisionerDb.DeleteMCServer(id)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (s *MinecraftLinodeProvisionService) AnnounceMessage(id string, message string) error {
+	if id == "" {
+		return fmt.Errorf("no server id provided")
+	}
+	if message == "" {
+		return fmt.Errorf("no message provided")
+	}
+
+	// Find the server
+	server, err := s.provisionerDb.FindMCServer(id)
+	if err != nil {
+		return err
+	}
+	if server == nil {
+		return fmt.Errorf("server not found")
+	}
+
+	// Create SSH config
+	config := &ssh.ClientConfig{
+		User: "root",
+		Auth: []ssh.AuthMethod{
+			ssh.Password(s.serverRootPass),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		Timeout:         10 * time.Second,
+	}
+
+	// Connect to the server
+	conn, err := ssh.Dial("tcp", fmt.Sprintf("%s:22", server.IP), config)
+	if err != nil {
+		return fmt.Errorf("failed to connect to server: %v", err)
+	}
+	defer conn.Close()
+
+	// Create session
+	session, err := conn.NewSession()
+	if err != nil {
+		return fmt.Errorf("failed to create session: %v", err)
+	}
+	defer session.Close()
+
+	// Escape any quotes in the message to prevent command injection
+	escapedMessage := strings.Replace(message, "'", "\\'", -1)
+	escapedMessage = strings.Replace(escapedMessage, "\"", "\\\"", -1)
+
+	// Execute the minecraft server command
+	cmd := fmt.Sprintf("su - mcserver -c '/home/mcserver/mcserver send \"say %s\"'", escapedMessage)
+	err = session.Run(cmd)
+	if err != nil {
+		return fmt.Errorf("failed to execute command: %v", err)
 	}
 
 	return nil
