@@ -22,7 +22,14 @@ func NewMcRouter(service services.MinecraftProvisionService) *McRouter {
 	}
 }
 
-func (r *McRouter) Provision(c *gin.Context) {
+func (r *McRouter) UseRoutes(e *gin.Engine) {
+	e.POST("/v1/provision/mc", r.provision)
+	e.GET("/v1/servers/mc/:owner", r.listByOwner)
+	e.DELETE("/v1/servers/mc/:id", r.deleteServer)
+	e.POST("/v1/servers/mc/:id/announce", r.announce)
+}
+
+func (r *McRouter) provision(c *gin.Context) {
 	var req *models.ProvisionMcServerRequest
 	if err := c.BindJSON(&req); err != nil {
 		return
@@ -45,7 +52,7 @@ func (r *McRouter) Provision(c *gin.Context) {
 	c.String(http.StatusCreated, ip)
 }
 
-func (r *McRouter) ListByOwner(c *gin.Context) {
+func (r *McRouter) listByOwner(c *gin.Context) {
 	owner := c.Param("owner")
 
 	if strings.TrimSpace(owner) == "" {
@@ -64,7 +71,7 @@ func (r *McRouter) ListByOwner(c *gin.Context) {
 	c.JSON(http.StatusOK, servers)
 }
 
-func (r *McRouter) DeleteServer(c *gin.Context) {
+func (r *McRouter) deleteServer(c *gin.Context) {
 	id := c.Param("id")
 
 	if strings.TrimSpace(id) == "" {
@@ -83,7 +90,7 @@ func (r *McRouter) DeleteServer(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-func (r *McRouter) Announce(c *gin.Context) {
+func (r *McRouter) announce(c *gin.Context) {
 	id := c.Param("id")
 	var req struct {
 		Message string `json:"message" binding:"required"`

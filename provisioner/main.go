@@ -30,14 +30,10 @@ func main() {
 	}))
 
 	healthRouter := routes.NewHealthRouter()
-	r.GET("/ping", healthRouter.HealthCheck)
+	healthRouter.UseRoutes(r)
 
 	mcRouter := routes.NewMcRouter(mcService)
-
-	r.POST("/v1/provision/mc", mcRouter.Provision)
-	r.GET("/v1/servers/mc/:owner", mcRouter.ListByOwner)
-	r.DELETE("/v1/servers/mc/:id", mcRouter.DeleteServer)
-	r.POST("/v1/servers/mc/:id/announce", mcRouter.Announce)
+	mcRouter.UseRoutes(r)
 
 	r.SetTrustedProxies([]string{})
 
