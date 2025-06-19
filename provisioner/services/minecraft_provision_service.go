@@ -85,7 +85,7 @@ func (s *minecraftLinodeProvisionService) Provision(req *m.ProvisionMcServerRequ
 	if err != nil {
 		return "", fmt.Errorf("error creating mc server %s", err.Error())
 	}
-	if resp.Ipv4 == nil || len(resp.Ipv4) == 0 {
+	if len(resp.Ipv4) == 0 {
 		return "", fmt.Errorf("no ip found from creating linode")
 	}
 
@@ -177,7 +177,7 @@ func (s *minecraftLinodeProvisionService) ListServersByOwner(owner string) ([]*m
 		return nil, err
 	}
 
-	if servers == nil || len(servers) == 0 {
+	if len(servers) == 0 {
 		return []*m.MinecraftServer{}, nil
 	}
 

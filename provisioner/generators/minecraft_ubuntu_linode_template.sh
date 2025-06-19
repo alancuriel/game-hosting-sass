@@ -1,8 +1,5 @@
 #!/bin/bash
-
-sudo apt update
-sudo apt upgrade -y
-sudo apt install -y lib32gcc-s1 lib32stdc++6 libsdl2-2.0-0
+apt-get -y update
 
 export DEBIAN_FRONTEND=noninteractive
 adduser --disabled-password --gecos "" mcserver

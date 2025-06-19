@@ -6,26 +6,31 @@ import (
 	"time"
 )
 
-func OnMcServerUp(ip string, callback func()) {
+var (
+    serverUpTimeout = 15 * time.Minute
+    serverPingInterval = 10 * time.Second
+)
+
+func OnMcServerUp(ip string, serverUpFunc func()) {
 	logger := log.Default()
 	logger.Println("SERVER STARTING, IP: " + ip)
-	timeoutTime := time.Now().Add(15 * time.Minute)
+	timeoutTime := time.Now().Add(serverUpTimeout)
 	// Loop to check server status
 	for {
 		if time.Now().After(timeoutTime) {
-			logger.Printf("TIMEOUT mc server starting on %s took too long\n", ip)
+			logger.Printf("timeout: mc server starting up %s took too long\n", ip)
 			return
 		}
 
 		if IsMCServerUp(ip, "25565") {
-			logger.Printf("Server %s is Up! \n", ip)
-			callback()
+			logger.Printf("mc server %s is up! \n", ip)
+			serverUpFunc()
 			return
 		} else {
-			logger.Printf("Server %s is Down, pinging in 10secs \n", ip)
+			logger.Printf("server %s is down, pinging again in 10secs \n", ip)
 		}
 
-		time.Sleep(10 * time.Second) // Check every 10 seconds
+		time.Sleep(serverPingInterval) // Check every 10 seconds
 	}
 }
 

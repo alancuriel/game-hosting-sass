@@ -74,7 +74,7 @@ func (l *Linode) DeleteLinode(linodeId int64) error {
 	return nil
 }
 
-func (l *Linode) postJson(path string, body interface{}) (*http.Response, error) {
+func (l *Linode) postJson(path string, body any) (*http.Response, error) {
 	jsonBody, err := json.Marshal(body)
 
 	if err != nil {

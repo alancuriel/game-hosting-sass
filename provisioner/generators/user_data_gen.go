@@ -36,7 +36,7 @@ func (g *UserDataGenerator) Generate(params map[string]string) (string, error) {
 
 	str := g.templateString
 	for paramKey, replaceValue := range params {
-		str = strings.Replace(str, paramKey, replaceValue, -1)
+		str = strings.ReplaceAll(str, paramKey, replaceValue)
 	}
 
 	return base64.StdEncoding.EncodeToString([]byte(str)), nil
