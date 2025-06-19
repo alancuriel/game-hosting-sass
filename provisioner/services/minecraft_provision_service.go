@@ -12,11 +12,10 @@ import (
 	gen "github.com/alancuriel/game-hosting-sass/provisioner/generators"
 	"github.com/alancuriel/game-hosting-sass/provisioner/helpers"
 	m "github.com/alancuriel/game-hosting-sass/provisioner/models"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 const (
-	default_linode_image  = "linode/ubuntu22.04"
+	default_linode_image  = "linode/ubuntu24.04"
 	minecraft_firewall_id = 1157654
 )
 
@@ -91,9 +90,7 @@ func (s *minecraftLinodeProvisionService) Provision(req *m.ProvisionMcServerRequ
 	}
 
 	now := time.Now()
-
 	server := &m.MinecraftServer{
-		ID:           primitive.NewObjectID(),
 		IP:           resp.Ipv4[0],
 		LinodeId:     resp.Id,
 		Username:     req.Username,
@@ -111,11 +108,11 @@ func (s *minecraftLinodeProvisionService) Provision(req *m.ProvisionMcServerRequ
 		return resp.Ipv4[0], fmt.Errorf("server created but failed to save to database: %v", err)
 	}
 
-	go helpers.PingMcServer(resp.Ipv4[0], func() {
-		s.provisionerDb.UpdateServerStatus(server.ID, "running")
+	go helpers.OnMcServerUp(server.IP, func() {
+		s.provisionerDb.UpdateServerStatus(server.Id, "running")
 	})
 
-	return resp.Ipv4[0], nil
+	return server.IP, nil
 }
 
 func (s *minecraftLinodeProvisionService) genLinodeRequest(
@@ -201,7 +198,7 @@ func (s *minecraftLinodeProvisionService) DeleteServer(id string) error {
 		return nil
 	}
 
-	err = s.provisionerDb.UpdateServerStatus(server.ID, "deleting")
+	err = s.provisionerDb.UpdateServerStatus(server.Id, "deleting")
 	if err != nil {
 		return err
 	}

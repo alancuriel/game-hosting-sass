@@ -1,6 +1,6 @@
 module github.com/alancuriel/game-hosting-sass/provisioner
 
-go 1.22.5
+go 1.24.4
 
 require (
 	github.com/gin-gonic/gin v1.10.0

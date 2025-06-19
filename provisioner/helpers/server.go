@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func PingMcServer(ip string, callback func()) {
+func OnMcServerUp(ip string, callback func()) {
 	logger := log.Default()
 	logger.Println("SERVER STARTING, IP: " + ip)
 	timeoutTime := time.Now().Add(15 * time.Minute)
@@ -17,7 +17,7 @@ func PingMcServer(ip string, callback func()) {
 			return
 		}
 
-		if IsServerUp(ip, "25565") {
+		if IsMCServerUp(ip, "25565") {
 			logger.Printf("Server %s is Up! \n", ip)
 			callback()
 			return
@@ -29,7 +29,7 @@ func PingMcServer(ip string, callback func()) {
 	}
 }
 
-func IsServerUp(ip, port string) bool {
+func IsMCServerUp(ip, port string) bool {
 	address := net.JoinHostPort(ip, port)
 	conn, err := net.DialTimeout("tcp", address, 5*time.Second) // 5-second timeout
 	if err != nil {

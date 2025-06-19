@@ -37,26 +37,31 @@ func NewProvisioner() (*ProvisionerDB, error) {
 	}, nil
 }
 
-func (s *ProvisionerDB) SaveServer(server *m.MinecraftServer) (interface{}, error) {
+func (s *ProvisionerDB) SaveServer(server *m.MinecraftServer) (string, error) {
 	collection := s.db.Collection("minecraft_servers")
 	result, err := collection.InsertOne(context.Background(), server)
 
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return result.InsertedID, nil
+	return result.InsertedID.(primitive.ObjectID).Hex(), nil
 }
 
-func (s *ProvisionerDB) UpdateServerStatus(id interface{}, status string) error {
+func (s *ProvisionerDB) UpdateServerStatus(id string, status string) error {
+   _id, err := primitive.ObjectIDFromHex(id)
+   if err != nil {
+       return fmt.Errorf("invalid id provided")
+   }
+
 	collection := s.db.Collection("minecraft_servers")
-	filter := bson.M{"_id": id}
+	filter := bson.M{"_id": _id}
 	update := bson.M{"$set": bson.M{
 		"status":      status,
 		"lastUpdated": time.Now(),
 	}}
 
-	_, err := collection.UpdateOne(context.Background(), filter, update)
+	_, err = collection.UpdateOne(context.Background(), filter, update)
 	if err != nil {
 		return err
 	}
