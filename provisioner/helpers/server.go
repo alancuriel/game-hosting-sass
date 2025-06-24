@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-var (
+const (
     serverUpTimeout = 15 * time.Minute
     serverPingInterval = 10 * time.Second
 )
